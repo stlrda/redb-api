@@ -44,25 +44,32 @@ async def shutdown():
 async def get_api_docs():
     response = RedirectResponse(url='/redoc')
     return response
+
+## PARCEL ENDPOINTS!! ##
+# Get a ParcelId
+@app.get('/parcel/{ParcelId}', response_model=current_single_parcel_info)
+async def Parcel_Search(ParcelId: str):
+    query_parcels = f'SELECT * FROM "core"."parcel" WHERE parcel_id = :specific AND current_flag = true'
+    query_buildings = f'SELECT * FROM "core"."building" WHERE CONCAT(SUBSTRING(building_id FROM 1 FOR 14), \'.000.0000\') = :specific AND current_flag = true'
+    query_units = f'SELECT * FROM "core"."unit" WHERE CONCAT(SUBSTRING(unit_id FROM 1 FOR 14), \'.000.0000\') = :specific AND current_flag = true'
     
-# Parcel Endpoints?!
-@app.get('/parcel', response_model=List[ParcelTest])
-async def parcel_test():
-    query = f'SELECT * FROM "core"."parcel" LIMIT 100'
-    return await database.fetch_all(query=query)
+    values = {'specific': ParcelId}
+    
+    parcel_info_dict = await database.fetch_one(query=query_parcels, values=values)
+    building_info_dict = await database.fetch_all(query=query_buildings, values=values)
+    unit_info_dict = await database.fetch_all(query=query_units, values=values)
 
-# Get a specificVar
-@app.get('/parcel/{specificVar}', response_model=parcel_specific)
-async def crime_points(specificVar: str):
-    query = f'SELECT * FROM "core"."parcel" WHERE parcel_id = :specific AND current_flag = true'
-    values = {'specific': specificVar}
-    return await database.fetch_one(query=query, values=values)
+    combined_dict = {**parcel_info_dict,'buildings':building_info_dict,'units':unit_info_dict}
 
+    return combined_dict
+
+## LEGAL_ENTITY ENDPOINTS! ##
 @app.get('/legal_entity/{nameInput}', response_model=List[legal_entity_name])
-async def find_name(nameInput: str):
+async def Find_Legal_Entity_Id(nameInput: str):
     query = f'SELECT * FROM "core"."legal_entity" WHERE SIMILARITY(legal_entity_name, :name) > 0.4'
     values = {'name': nameInput}
-    return await database.fetch_all(query=query, values=values)
+    testdict = await database.fetch_all(query=query, values=values)
+    return testdict
 
 
 # @app.get('/crime/detailed', response_model=List[CrimeDetailed])

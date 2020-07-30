@@ -1,4 +1,4 @@
-# API for St Louis Crime DB
+# API for Regional Entity Database
 import sqlalchemy
 import databases
 import json
@@ -47,26 +47,77 @@ async def get_api_docs():
 
 ## PARCEL ENDPOINTS!! ##
 # Get a ParcelId
-@app.get('/parcel/{ParcelId}', response_model=current_single_parcel_info)
-async def Parcel_Search(ParcelId: str):
-    query_parcels = f'SELECT * FROM "core"."parcel" WHERE parcel_id = :specific AND current_flag = true'
-    query_buildings = f'SELECT * FROM "core"."building" WHERE CONCAT(SUBSTRING(building_id FROM 1 FOR 14), \'.000.0000\') = :specific AND current_flag = true'
-    query_units = f'SELECT * FROM "core"."unit" WHERE CONCAT(SUBSTRING(unit_id FROM 1 FOR 14), \'.000.0000\') = :specific AND current_flag = true'
-    
+@app.get('/parcel', response_model=single_parcel_info)
+async def Parcel_Search(ParcelId: str, Current: bool):
+
     values = {'specific': ParcelId}
-    
-    parcel_info_dict = await database.fetch_one(query=query_parcels, values=values)
+    if Current == True:
+        current_flag_select = ''
+        current_flag_value = 'AND current_flag = true'
+    else:
+        current_flag_select = ', current_flag'
+        current_flag_value = ''
+
+    query_parcels = f'''SELECT parcel_id
+                        , county_id
+                        , address_id
+                        , city_block_number
+                        , parcel_number
+                        , owner_id
+                        , description
+                        , frontage_to_street
+                        , land_area
+                        , zoning_class
+                        , ward
+                        , voting_precinct
+                        , inspection_area
+                        , neighborhood_id
+                        , police_district
+                        , census_tract
+                        , asr_neighborhood
+                        , special_parcel_type.special_parcel_type
+                        , sub_parcel_type.sub_parcel_type
+                        , gis_city_block
+                        , gis_parcel
+                        , gis_owner_code
+                    {current_flag_select}
+                    FROM "core"."parcel" 
+                    LEFT JOIN "core"."special_parcel_type"
+                    ON COALESCE("special_parcel_type"."special_parcel_type_code", 'null') = COALESCE("parcel"."special_parcel_type_code", 'null')
+                    LEFT JOIN "core"."sub_parcel_type"
+                    ON COALESCE("sub_parcel_type"."sub_parcel_type_code", 'null') = COALESCE("parcel"."sub_parcel_type_code", 'null')
+                    WHERE parcel_id = :specific 
+                    {current_flag_value}'''
+    query_buildings = f'''SELECT building_id
+                        , owner_id
+                        , description
+                        , building_use
+                        , apartment_count
+                        {current_flag_select}
+                    FROM "core"."building" 
+                    WHERE CONCAT(SUBSTRING(building_id FROM 1 FOR 14), \'.000.0000\') = :specific 
+                    {current_flag_value}'''
+    query_units = f'''SELECT unit_id
+                        , description
+                        , condominium
+                    {current_flag_select}
+                    FROM "core"."unit" 
+                    WHERE CONCAT(SUBSTRING(unit_id FROM 1 FOR 14), \'.000.0000\') = :specific 
+                    {current_flag_value}'''
+
+    parcel_info_dict = await database.fetch_all(query=query_parcels, values=values)
     building_info_dict = await database.fetch_all(query=query_buildings, values=values)
     unit_info_dict = await database.fetch_all(query=query_units, values=values)
 
-    combined_dict = {**parcel_info_dict,'buildings':building_info_dict,'units':unit_info_dict}
-
+    combined_dict = {'parcels':parcel_info_dict,'buildings':building_info_dict,'units':unit_info_dict}
     return combined_dict
 
 ## LEGAL_ENTITY ENDPOINTS! ##
 @app.get('/legal_entity/{nameInput}', response_model=List[legal_entity_name])
 async def Find_Legal_Entity_Id(nameInput: str):
-    query = f'SELECT * FROM "core"."legal_entity" WHERE SIMILARITY(legal_entity_name, :name) > 0.4'
+    query = f'''SELECT * 
+                FROM "core"."legal_entity" 
+                WHERE SIMILARITY(legal_entity_name, :name) > 0.4'''
     values = {'name': nameInput}
     testdict = await database.fetch_all(query=query, values=values)
     return testdict

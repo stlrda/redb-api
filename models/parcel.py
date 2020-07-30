@@ -10,3 +10,7 @@ class SingleParcelInfo(BaseModel):
 
 class FindLatestUpdate(BaseModel):
     last_update: date
+
+class FilterParcels(BaseModel):
+    building_use: str
+    count: int

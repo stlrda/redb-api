@@ -5,7 +5,7 @@ import json
 
 from datetime import date
 from pydantic import BaseModel
-from fastapi import FastAPI, Request, Depends, BackgroundTasks
+from fastapi import FastAPI, Request, Depends, BackgroundTasks, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from starlette.responses import RedirectResponse
@@ -39,8 +39,7 @@ async def startup():
 async def shutdown():
     await database.disconnect()
 
-## Version 2.0 Endpoints ##
-# Redirect Root to Docs
+# Redirect Root to Docs 
 @app.get('/')
 async def get_api_docs():
     response = RedirectResponse(url='/redoc')
@@ -89,6 +88,7 @@ async def Parcel_Search(ParcelInput: str, Current: bool):
                     ON COALESCE("sub_parcel_type"."sub_parcel_type_code", 'null') = COALESCE("parcel"."sub_parcel_type_code", 'null')
                     WHERE parcel_id = :ParcelId
                     {current_flag_where}'''
+    
     query_buildings = f'''SELECT building_id
                         , owner_id
                         , description
@@ -98,6 +98,7 @@ async def Parcel_Search(ParcelInput: str, Current: bool):
                     FROM "core"."building" 
                     WHERE CONCAT(SUBSTRING(building_id FROM 1 FOR 14), \'.000.0000\') = :ParcelId
                     {current_flag_where}'''
+    
     query_units = f'''SELECT unit_id
                         , description
                         , condominium
@@ -113,18 +114,40 @@ async def Parcel_Search(ParcelInput: str, Current: bool):
     combined_dict = {'parcels':parcel_info_dict,'buildings':building_info_dict,'units':unit_info_dict}
     return combined_dict
 
+#Filter parcels
+@app.get('/filter', response_model = List[FilterParcels])
+async def Building_Types_By_Filter(FilterTypeInput: str, FilterValueInput: str):
+
+    values = {'FilterValue': FilterValueInput}
+    allowedFliters = ['zoning_class', 'ward', 'voting_precinct', 'inspection_area', 'neighborhood_id', 'police_district', 'census_tract']
+
+    if FilterTypeInput in allowedFliters:
+        query = f'''SELECT DISTINCT building_use, COUNT(*)
+                    FROM core.building
+                    JOIN (SELECT parcel_id, {FilterTypeInput} FROM core.parcel WHERE {FilterTypeInput} = :FilterValue) Parcel_Filter
+                    ON Parcel_Filter.parcel_id = building.parcel_id
+                    GROUP BY building_use
+                    HAVING "building_use" IN ('COM','RES')
+                    '''
+
+        building_counts = await database.fetch_all(query=query, values=values)        
+        return building_counts
+    else:
+        raise HTTPException(status_code=400, detail='Unsupported filter. Try one of the following zoning_class, ward, voting_precinct, inspection_area, neighborhood_id, police_district, census_tract')
+
 ## LEGAL_ENTITY ENDPOINTS! ##
-@app.get('/legal_entity/{nameInput}', response_model=List[legal_entity_name])
+@app.get('/legal_entity/{nameInput}', response_model=List[LegalEntityName])
 async def Find_Legal_Entity_Id(nameInput: str):
     query = f'''SELECT * 
                 FROM "core"."legal_entity" 
                 WHERE SIMILARITY(legal_entity_name, :name) > 0.4'''
     values = {'name': nameInput}
-    testdict = await database.fetch_all(query=query, values=values)
-    return testdict
+    legal_entities = await database.fetch_all(query=query, values=values)
+    return legal_entities
 
+## LAST UPDATE ENDPOINT! ##
 @app.get('/latest')
-async def FindLatestUpdate():
+async def Find_Latest_Update():
     query = '''WITH LATEST_UPDATE AS
             (
                 SELECT MAX("update_date") as "update_date" FROM "core"."neighborhood"
@@ -143,6 +166,8 @@ async def FindLatestUpdate():
             )
             SELECT MAX("update_date") as "update_date" FROM LATEST_UPDATE'''
     return await database.fetch_one(query=query)
+
+
 
 # @app.get('/crime/detailed', response_model=List[CrimeDetailed])
 # async def crime_detailed(start: date, end: date, category: str):

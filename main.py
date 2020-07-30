@@ -3,6 +3,7 @@ import sqlalchemy
 import databases
 import json
 
+from datetime import date
 from pydantic import BaseModel
 from fastapi import FastAPI, Request, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
@@ -47,16 +48,16 @@ async def get_api_docs():
 
 ## PARCEL ENDPOINTS!! ##
 # Get a ParcelId
-@app.get('/parcel', response_model=single_parcel_info)
-async def Parcel_Search(ParcelId: str, Current: bool):
+@app.get('/parcel', response_model=SingleParcelInfo)
+async def Parcel_Search(ParcelInput: str, Current: bool):
 
-    values = {'specific': ParcelId}
+    values = {'ParcelId': ParcelInput}
     if Current == True:
         current_flag_select = ''
-        current_flag_value = 'AND current_flag = true'
+        current_flag_where = 'AND current_flag = TRUE'
     else:
         current_flag_select = ', current_flag'
-        current_flag_value = ''
+        current_flag_where = ''
 
     query_parcels = f'''SELECT parcel_id
                         , county_id
@@ -86,8 +87,8 @@ async def Parcel_Search(ParcelId: str, Current: bool):
                     ON COALESCE("special_parcel_type"."special_parcel_type_code", 'null') = COALESCE("parcel"."special_parcel_type_code", 'null')
                     LEFT JOIN "core"."sub_parcel_type"
                     ON COALESCE("sub_parcel_type"."sub_parcel_type_code", 'null') = COALESCE("parcel"."sub_parcel_type_code", 'null')
-                    WHERE parcel_id = :specific 
-                    {current_flag_value}'''
+                    WHERE parcel_id = :ParcelId
+                    {current_flag_where}'''
     query_buildings = f'''SELECT building_id
                         , owner_id
                         , description
@@ -95,15 +96,15 @@ async def Parcel_Search(ParcelId: str, Current: bool):
                         , apartment_count
                         {current_flag_select}
                     FROM "core"."building" 
-                    WHERE CONCAT(SUBSTRING(building_id FROM 1 FOR 14), \'.000.0000\') = :specific 
-                    {current_flag_value}'''
+                    WHERE CONCAT(SUBSTRING(building_id FROM 1 FOR 14), \'.000.0000\') = :ParcelId
+                    {current_flag_where}'''
     query_units = f'''SELECT unit_id
                         , description
                         , condominium
                     {current_flag_select}
                     FROM "core"."unit" 
-                    WHERE CONCAT(SUBSTRING(unit_id FROM 1 FOR 14), \'.000.0000\') = :specific 
-                    {current_flag_value}'''
+                    WHERE CONCAT(SUBSTRING(unit_id FROM 1 FOR 14), \'.000.0000\') = :ParcelId
+                    {current_flag_where}'''
 
     parcel_info_dict = await database.fetch_all(query=query_parcels, values=values)
     building_info_dict = await database.fetch_all(query=query_buildings, values=values)
@@ -122,6 +123,26 @@ async def Find_Legal_Entity_Id(nameInput: str):
     testdict = await database.fetch_all(query=query, values=values)
     return testdict
 
+@app.get('/latest')
+async def FindLatestUpdate():
+    query = '''WITH LATEST_UPDATE AS
+            (
+                SELECT MAX("update_date") as "update_date" FROM "core"."neighborhood"
+                UNION
+                SELECT MAX("update_date") as "update_date" FROM  "core"."address"
+                UNION
+                SELECT MAX("update_date") as "update_date" FROM "core"."county_id_mapping_table"
+                UNION
+                SELECT MAX("update_date") as "update_date" FROM "core"."legal_entity"
+                UNION
+                SELECT MAX("update_date") as "update_date" FROM "core"."parcel"
+                UNION
+                SELECT MAX("update_date") as "update_date" FROM "core"."building"
+                UNION
+                SELECT MAX("update_date") as "update_date" FROM "core"."unit"
+            )
+            SELECT MAX("update_date") as "update_date" FROM LATEST_UPDATE'''
+    return await database.fetch_one(query=query)
 
 # @app.get('/crime/detailed', response_model=List[CrimeDetailed])
 # async def crime_detailed(start: date, end: date, category: str):

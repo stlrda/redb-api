@@ -1,5 +1,4 @@
 #stores DB connection info
-config.py
 
 #Virtal Environment
 pytest

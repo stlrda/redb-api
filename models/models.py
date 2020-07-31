@@ -17,4 +17,16 @@ class FilterParcelCounts(BaseModel):
 
 class FilterParcelIds(BaseModel):
     parcel_id: str
-    
+
+##
+class LegalEntityName(BaseModel):
+    legal_entity_id: int
+    legal_entity_address: Optional[str]
+    legal_entity_name: Optional[str]
+    legal_entity_secondary_name: Optional[str]
+    address_id: int
+
+class LegalEntityId(BaseModel):
+    parcels: list
+    buildings: list
+    units: list

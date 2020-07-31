@@ -114,8 +114,9 @@ async def Parcel_Search(ParcelInput: str, Current: bool):
     combined_dict = {'parcels':parcel_info_dict,'buildings':building_info_dict,'units':unit_info_dict}
     return combined_dict
 
-#Filter parcels
-@app.get('/filter', response_model = List[FilterParcels])
+## Filter parcels ##
+# Return counts of bus/res buildings #
+@app.get('/filter/counts', response_model = List[FilterParcelCounts])
 async def Building_Types_By_Filter(FilterTypeInput: str, FilterValueInput: str):
 
     values = {'FilterValue': FilterValueInput}
@@ -124,16 +125,32 @@ async def Building_Types_By_Filter(FilterTypeInput: str, FilterValueInput: str):
     if FilterTypeInput in allowedFliters:
         query = f'''SELECT DISTINCT building_use, COUNT(*)
                     FROM core.building
-                    JOIN (SELECT parcel_id, {FilterTypeInput} FROM core.parcel WHERE {FilterTypeInput} = :FilterValue) Parcel_Filter
+                    JOIN (SELECT parcel_id, {FilterTypeInput} FROM core.parcel WHERE {FilterTypeInput} = :FilterValue AND current_flag = TRUE) Parcel_Filter
                     ON Parcel_Filter.parcel_id = building.parcel_id
                     GROUP BY building_use
                     HAVING "building_use" IN ('COM','RES')
                     '''
-
         building_counts = await database.fetch_all(query=query, values=values)        
         return building_counts
     else:
-        raise HTTPException(status_code=400, detail='Unsupported filter. Try one of the following zoning_class, ward, voting_precinct, inspection_area, neighborhood_id, police_district, census_tract')
+        raise HTTPException(status_code=400, detail='Unsupported filter. Please use one of the following: [zoning_class, ward, voting_precinct, inspection_area, neighborhood_id, police_district, census_tract]')
+
+# Return all current parcel ids #
+@app.get('/filter/ids', response_model = List[FilterParcelIds])
+async def Building_Types_By_Filter(FilterTypeInput: str, FilterValueInput: str):
+
+    values = {'FilterValue': FilterValueInput}
+    allowedFliters = ['zoning_class', 'ward', 'voting_precinct', 'inspection_area', 'neighborhood_id', 'police_district', 'census_tract']
+
+    if FilterTypeInput in allowedFliters:
+            query = f'''SELECT DISTINCT parcel_id 
+                    FROM core.parcel 
+                    WHERE {FilterTypeInput} = :FilterValue 
+                    AND current_flag = TRUE'''
+            parcelIDs = await database.fetch_all(query=query, values=values)        
+            return parcelIDs
+    else:
+        raise HTTPException(status_code=400, detail='Unsupported filter. Please use one of the following: [zoning_class, ward, voting_precinct, inspection_area, neighborhood_id, police_district, census_tract]')
 
 ## LEGAL_ENTITY ENDPOINTS! ##
 @app.get('/legal_entity/{nameInput}', response_model=List[LegalEntityName])
@@ -167,22 +184,20 @@ async def Find_Latest_Update():
             SELECT MAX("update_date") as "update_date" FROM LATEST_UPDATE'''
     return await database.fetch_one(query=query)
 
-
-
 # @app.get('/crime/detailed', response_model=List[CrimeDetailed])
 # async def crime_detailed(start: date, end: date, category: str):
 #     query = "SELECT id, date, time, description, lon, lat FROM crime WHERE count = true AND date >= :start AND date <= :end AND LOWER(category) = LOWER(:category);"
 #     values = {'start': start, 'end': end, 'category': category}
 #     return await database.fetch_all(query=query, values=values)
 
-# ## Modify API Docs ##
+## Modify API Docs ##
 # def api_docs(openapi_prefix: str):
 #     if app.openapi_schema:
 #         return app.openapi_schema
 #     openapi_schema = get_openapi(
-#         title='St. Louis Crime',
+#         title='Regional Entity Database',
 #         version='0.1.0',
-#         description='Automatically Updated, Clean Crime Data from the Saint Louis Metropolitan Police Department, provided by the St. Louis Regional Data Alliance in partnership with the Insititute for Public Health at Washington University.<br><br>If you\'d prefer to interact with queries in browser, see the <a href=\'/docs\'>Swagger UI</a>',
+#         description='Automatically Updated, land parcel data from Saint Louis, provided by the St. Louis Regional Data Alliance .<br><br>If you\'d prefer to interact with queries in browser, see the <a href=\'/docs\'>Swagger UI</a>',
 #         routes=app.routes,#[13:], # Need to Verify this to Obfuscate Some Routes from Docs
 #         openapi_prefix=openapi_prefix
 #     )
@@ -194,5 +209,3 @@ async def Find_Latest_Update():
 
 # app.openapi = api_docs
 
-if __name__ == "__main__":
-    app.run()

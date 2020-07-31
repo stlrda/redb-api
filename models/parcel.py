@@ -11,6 +11,10 @@ class SingleParcelInfo(BaseModel):
 class FindLatestUpdate(BaseModel):
     last_update: date
 
-class FilterParcels(BaseModel):
+class FilterParcelCounts(BaseModel):
     building_use: str
     count: int
+
+class FilterParcelIds(BaseModel):
+    parcel_id: str
+    

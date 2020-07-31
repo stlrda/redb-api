@@ -3,7 +3,7 @@ from typing import List, Optional
 from datetime import date
 
 # Define Parcel Models
-class SingleParcelInfo(BaseModel):
+class ParcelInfo(BaseModel):
     parcels: list
     buildings: list
     units: list
@@ -25,8 +25,3 @@ class LegalEntityName(BaseModel):
     legal_entity_name: Optional[str]
     legal_entity_secondary_name: Optional[str]
     address_id: int
-
-class LegalEntityId(BaseModel):
-    parcels: list
-    buildings: list
-    units: list

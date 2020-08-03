@@ -238,6 +238,9 @@ async def Find_Parcels_By_Address(AddressInput: str, Current:bool):
                         ON COALESCE("sub_parcel_type"."sub_parcel_type_code", 'null') = COALESCE("parcel"."sub_parcel_type_code", 'null')
                         WHERE address_id = {address_subquery}
                         {current_flag_where}'''
+
+    parcel_id_fetch = await database.fetch_all(query=query_parcels, values=values)
+    parcel_ids = [parcel['parcel_id'] for parcel in parcel_id_fetch]
     
     query_buildings = f'''SELECT building_id
                             , owner_id
@@ -246,9 +249,7 @@ async def Find_Parcels_By_Address(AddressInput: str, Current:bool):
                             , apartment_count
                             {current_flag_select}
                             FROM "core"."building"
-                            WHERE "parcel_id" IN (SELECT "parcel_id" 
-                                                FROM "core"."parcel"
-                                                WHERE address_id = {address_subquery})
+                            WHERE "parcel_id" = ANY(ARRAY{parcel_ids})
                             {current_flag_where}'''
     
     query_units = f'''SELECT unit_id
@@ -258,12 +259,13 @@ async def Find_Parcels_By_Address(AddressInput: str, Current:bool):
                             FROM "core"."unit"
                             WHERE SUBSTRING("unit_id" FROM 1 FOR 14) IN (SELECT SUBSTRING("parcel_id" FROM 1 FOR 14)
                                                                         FROM "core"."parcel"
-                                                                        WHERE "address_id" = {address_subquery})
+                                                                        WHERE "parcel_id" = ANY(ARRAY{parcel_ids}))
                             {current_flag_where}'''
 
+
     parcel_info_dict = await database.fetch_all(query=query_parcels, values=values)
-    building_info_dict = await database.fetch_all(query=query_buildings, values=values)
-    unit_info_dict = await database.fetch_all(query=query_units, values=values)
+    building_info_dict = await database.fetch_all(query=query_buildings)
+    unit_info_dict = await database.fetch_all(query=query_units)
 
     combined_dict = {'parcels':parcel_info_dict, 'buildings':building_info_dict, 'units':unit_info_dict}
     return combined_dict

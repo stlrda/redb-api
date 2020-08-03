@@ -118,15 +118,11 @@ async def Find_Parcels_By_Legal_Entity_Id(IdInput: str, Current:bool):
     if Current == True:
         current_flag_select = ''
         current_flag_where = 'AND current_flag = TRUE'
-        current_building_flag_select = ''
-        current_building_flag_where = 'WHERE building.current_flag = TRUE'
         current_unit_flag_select = ''
         current_unit_flag_where = 'WHERE unit.current_flag = TRUE'
     else:
         current_flag_select = ', current_flag'
         current_flag_where = ''
-        current_building_flag_select = ', building.current_flag'
-        current_building_flag_where = ''
         current_unit_flag_select = ', unit.current_flag'
         current_unit_flag_where = ''
 
@@ -161,16 +157,15 @@ async def Find_Parcels_By_Legal_Entity_Id(IdInput: str, Current:bool):
                     WHERE owner_id = :Legal_Entity_Id
                     {current_flag_where}'''
     
-    query_buildings = f'''SELECT building.building_id
-                        , building.owner_id
-                        , building.description
-                        , building.building_use
-                        , building.apartment_count
-                        {current_building_flag_select}
+    query_buildings = f'''SELECT building_id
+                        , owner_id
+                        , description
+                        , building_use
+                        , apartment_count
+                        {current_flag_select}
                         FROM core.building 
-                        JOIN (SELECT * FROM core.parcel WHERE parcel.owner_id = :Legal_Entity_Id) OwnerIdQry
-                        ON OwnerIdQry.parcel_id = building.parcel_id
-                        {current_building_flag_where}
+                        WHERE owner_id = :Legal_Entity_Id
+                        {current_flag_where}
                         ORDER BY building.building_id'''
     
     query_units = f'''SELECT unit_id

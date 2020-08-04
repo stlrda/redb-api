@@ -186,29 +186,48 @@ async def Find_Parcels_By_Legal_Entity_Id(IdInput: str, Current:bool):
 
 
 @app.get('/redb/parcel/address', response_model=ParcelInfo)
-async def Find_Parcels_By_Address(AddressInput: str, Current:bool):
-    
+async def Find_Parcels_By_Address(AddressInput: str, Current: bool):
+    """This route returns parcel data for a given address. The parcel data includes
+    parcel(s) from the "core.parcel" table as well as each building and unit associated with
+    said parcel(s).
+
+    The following logic goes as follows:
+        Fetch parcel data for given address.
+        Assign fetched parcel_ids, current_flags, and create_dates to variables.
+        Fetch buildings and units that correspond to each parcel's parcel_id, current_flag, and create date.
+        Return a dictionary containing a list of each parcel, building, and unit related to given address.
+
+    Filtering buildings and units by a given parcel's parcel_id, current_flag, and create date is to ensure
+    that the buildings and units correspond to the exact instance of the parcel. parcel_id alone is not
+    sufficient because a parcel with an updated address and thus multiple instances of the same parcel_id
+    can have buildings and units that correspend to that instance specifically, but not to previous instances.
+    If we're assuming that only one instance of a parcel_id appears in parcels on a given date, the current_flag
+    and create_date will distinguish the buildings and units that only correspond to the parcel_id from the
+    buildings and units that also correspond to the given address.
+    """
+
     values = {'address': AddressInput}
-    address_subquery = '''(SELECT address_id
+    address_subquery = '''
+                        (
+                        SELECT
+                            address_id
                         FROM "core"."address"
-                        WHERE SIMILARITY(CONCAT(street_address, ' ', county_id, ' ', city, ' ', address.state, ' ', country, ' ', zip), :address) > 0.4
-                        ORDER BY WORD_SIMILARITY(CONCAT(street_address, ' ', county_id, ' ', city, ' ', address.state, ' ', country, ' ', zip), :address) DESC
-                        LIMIT 1)'''
+                        WHERE
+                            SIMILARITY(CONCAT(street_address, ' ', county_id, ' ', city, ' ', address.state, ' ', country, ' ', zip), :address) > 0.4
+                        ORDER BY
+                            WORD_SIMILARITY(CONCAT(street_address, ' ', county_id, ' ', city, ' ', address.state, ' ', country, ' ', zip), :address) DESC
+                        LIMIT 1
+                        )
+                        '''
 
     if Current == True:
-        current_flag_select = ''
         current_flag_where = 'AND current_flag = TRUE'
-
-        current_unit_flag_select = ''
-        current_unit_flag_where = 'WHERE unit.current_flag = TRUE'
     else:
-        current_flag_select = ', current_flag'
         current_flag_where = ''
 
-        current_unit_flag_select = ', unit.current_flag'
-        current_unit_flag_where = ''
-
-    query_parcels = f'''SELECT parcel_id
+    query_parcels = f'''
+                    SELECT 
+                        parcel_id
                         , county_id
                         , address_id
                         , city_block_number
@@ -230,45 +249,60 @@ async def Find_Parcels_By_Address(AddressInput: str, Current:bool):
                         , gis_city_block
                         , gis_parcel
                         , gis_owner_code
-                        {current_flag_select}
-                        FROM "core"."parcel" 
-                        LEFT JOIN "core"."special_parcel_type"
+                        , create_date
+                        , current_flag
+                    FROM "core"."parcel" 
+                    LEFT JOIN "core"."special_parcel_type"
                         ON COALESCE("special_parcel_type"."special_parcel_type_code", 'null') = COALESCE("parcel"."special_parcel_type_code", 'null')
-                        LEFT JOIN "core"."sub_parcel_type"
+                    LEFT JOIN "core"."sub_parcel_type"
                         ON COALESCE("sub_parcel_type"."sub_parcel_type_code", 'null') = COALESCE("parcel"."sub_parcel_type_code", 'null')
-                        WHERE address_id = {address_subquery}
-                        {current_flag_where}'''
+                    WHERE address_id = {address_subquery}
+                    {current_flag_where}
+                    ;
+                    '''
 
-    parcel_id_fetch = await database.fetch_all(query=query_parcels, values=values)
-    parcel_ids = [parcel['parcel_id'] for parcel in parcel_id_fetch]
-    
-    query_buildings = f'''SELECT building_id
+    parcels_fetch = await database.fetch_all(query=query_parcels, values=values)
+    parcel_ids_and_current_flags = [parcel['parcel_id'] + str(parcel["current_flag"]).lower() for parcel in parcels_fetch]
+    parcel_create_dates = [parcel['create_date'].strftime("%Y-%m-%d") for parcel in parcels_fetch]
+
+    query_buildings = f'''
+                        SELECT 
+                            building_id
                             , owner_id
                             , description
                             , building_use
                             , apartment_count
-                            {current_flag_select}
-                            FROM "core"."building"
-                            WHERE "parcel_id" = ANY(ARRAY{parcel_ids})
-                            {current_flag_where}'''
+                            , create_date
+                            , current_flag
+                        FROM "core"."building"
+                        WHERE
+                            CONCAT("parcel_id", "current_flag"::text) = ANY(ARRAY{parcel_ids_and_current_flags})
+                        AND CAST("create_date" as VARCHAR) = ANY(ARRAY{parcel_create_dates})
+                        ;
+                        '''
     
-    query_units = f'''SELECT unit_id
-                            , description
-                            , condominium
-                            {current_flag_select}
-                            FROM "core"."unit"
-                            WHERE SUBSTRING("unit_id" FROM 1 FOR 14) IN (SELECT SUBSTRING("parcel_id" FROM 1 FOR 14)
-                                                                        FROM "core"."parcel"
-                                                                        WHERE "parcel_id" = ANY(ARRAY{parcel_ids}))
-                            {current_flag_where}'''
+    query_units = f'''
+                    SELECT 
+                        u.unit_id
+                        , u.description
+                        , u.condominium
+                        , u.create_date
+                        , u.current_flag
+                    FROM "core"."unit" u
+                    JOIN "core"."parcel" p
+                        ON SUBSTRING(u."unit_id" FROM 1 FOR 14) = SUBSTRING(p."parcel_id" FROM 1 FOR 14)
+                    WHERE
+                        CONCAT(p."parcel_id", u."current_flag"::text) = ANY(ARRAY{parcel_ids_and_current_flags})
+                    AND CAST(u."create_date" as VARCHAR) = ANY(ARRAY{parcel_create_dates})
+                    ;
+                    '''
 
+    parcel_info_list = parcels_fetch
+    building_info_list = await database.fetch_all(query=query_buildings)
+    unit_info_list = await database.fetch_all(query=query_units)
 
-    parcel_info_dict = await database.fetch_all(query=query_parcels, values=values)
-    building_info_dict = await database.fetch_all(query=query_buildings)
-    unit_info_dict = await database.fetch_all(query=query_units)
-
-    combined_dict = {'parcels':parcel_info_dict, 'buildings':building_info_dict, 'units':unit_info_dict}
-    return combined_dict
+    parcels_by_address_dict = {'parcels':parcel_info_list, 'buildings':building_info_list, 'units':unit_info_list}
+    return parcels_by_address_dict
 
 ## Filter parcels ##
 # Return counts of bus/res buildings by filter#

@@ -384,6 +384,7 @@ async def Find_Latest_Update():
 
 
 ## Modify API Docs ##
+# TODO address ERROR: api_docs() missing 1 required positional argument: 'openapi_prefix' when adding "openapi_prefix" param.
 def api_docs():
     if app.openapi_schema:
         return app.openapi_schema
@@ -400,5 +401,5 @@ def api_docs():
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 
-app.openapi = api_docs
+app.openapi = api_docs()
 

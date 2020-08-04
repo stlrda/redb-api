@@ -13,11 +13,11 @@ ENV DB_PASS='postgres'
 ENV DB_NAME='redb'
 
 # Install Python Dependencies
-RUN mkdir /redb/api
-WORKDIR /redb/api
+# RUN mkdir /api
+# WORKDIR /api
 COPY requirements.txt /redb/api/requirements.txt
 
-RUN pip install -r requirements.txt
+RUN pip install -r /redb/api/requirements.txt
 
 # Copy API Files
 COPY main.py /redb/api/main.py

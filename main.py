@@ -96,6 +96,7 @@ async def Find_Parcel_By_REDB_Id(ParcelInput: str, Current: bool):
                     {current_flag_where}'''
     
     query_units = f'''SELECT unit_id
+                        , owner_id
                         , description
                         , condominium
                         {current_flag_select}
@@ -118,13 +119,9 @@ async def Find_Parcels_By_Legal_Entity_Id(IdInput: str, Current:bool):
     if Current == True:
         current_flag_select = ''
         current_flag_where = 'AND current_flag = TRUE'
-        current_unit_flag_select = ''
-        current_unit_flag_where = 'WHERE unit.current_flag = TRUE'
     else:
         current_flag_select = ', current_flag'
         current_flag_where = ''
-        current_unit_flag_select = ', unit.current_flag'
-        current_unit_flag_where = ''
 
     query_parcels = f'''SELECT parcel_id
                         , county_id
@@ -169,13 +166,13 @@ async def Find_Parcels_By_Legal_Entity_Id(IdInput: str, Current:bool):
                         ORDER BY building.building_id'''
     
     query_units = f'''SELECT unit_id
+                        , owner_id
                         , unit.description
                         , condominium
                         {current_unit_flag_select}
                         FROM core.unit 
-                        JOIN (SELECT * FROM core.parcel WHERE parcel.owner_id = :Legal_Entity_Id) OwnerIdQry
-                        ON SUBSTRING(OwnerIdQry.parcel_id FROM 1 FOR 14) = SUBSTRING(unit.unit_id FROM 1 FOR 14)
-                        {current_unit_flag_where}'''
+                        WHERE owner_id = :Legal_Entity_Id
+                        {current_flag_where}'''
 
     parcel_info_dict = await database.fetch_all(query=query_parcels, values=values)
     building_info_dict = await database.fetch_all(query=query_buildings, values=values)
@@ -284,6 +281,7 @@ async def Find_Parcels_By_Address(AddressInput: str, Current: bool):
     query_units = f'''
                     SELECT 
                         u.unit_id
+                        , u.owner_id
                         , u.description
                         , u.condominium
                         , u.create_date

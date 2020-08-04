@@ -228,51 +228,64 @@ async def Find_Parcels_By_Address(AddressInput: str, Current: bool):
                         LIMIT 1
                         )
                         '''
-
-    if Current == True:
-        current_flag_where = 'AND current_flag = TRUE'
-    else:
-        current_flag_where = ''
+    parcel_where = f'WHERE p.address_id = {address_subquery} AND p.current_flag = TRUE' if Current else f'WHERE p.address_id = {address_subquery}'
 
     query_parcels = f'''
                     SELECT 
-                        parcel_id
-                        , county_id
-                        , address_id
-                        , city_block_number
-                        , parcel_number
-                        , owner_id
-                        , description
-                        , frontage_to_street
-                        , land_area
-                        , zoning_class
-                        , ward
-                        , voting_precinct
-                        , inspection_area
-                        , neighborhood_id
-                        , police_district
-                        , census_tract
-                        , asr_neighborhood
+                        p.parcel_id
+                        , p.county_id
+                        , CONCAT(a."street_address", ' ', a."city", ' ', a."state", ' ', a."country", ' ', a."zip") as address
+                        , p.city_block_number
+                        , p.parcel_number
+                        , p.owner_id
+                        , p.description
+                        , p.frontage_to_street
+                        , p.land_area
+                        , p.zoning_class
+                        , p.ward
+                        , p.voting_precinct
+                        , p.inspection_area
+                        , p.neighborhood_id
+                        , p.police_district
+                        , p.census_tract
+                        , p.asr_neighborhood
                         , special_parcel_type.special_parcel_type
                         , sub_parcel_type.sub_parcel_type
-                        , gis_city_block
-                        , gis_parcel
-                        , gis_owner_code
-                        , create_date
-                        , current_flag
-                    FROM "core"."parcel" 
+                        , p.gis_city_block
+                        , p.gis_parcel
+                        , p.gis_owner_code
+                        , p.create_date
+                        , p.current_flag
+                    FROM "core"."parcel" p
                     LEFT JOIN "core"."special_parcel_type"
-                        ON COALESCE("special_parcel_type"."special_parcel_type_code", 'null') = COALESCE("parcel"."special_parcel_type_code", 'null')
+                        ON COALESCE("special_parcel_type"."special_parcel_type_code", 'null') = COALESCE(p."special_parcel_type_code", 'null')
                     LEFT JOIN "core"."sub_parcel_type"
-                        ON COALESCE("sub_parcel_type"."sub_parcel_type_code", 'null') = COALESCE("parcel"."sub_parcel_type_code", 'null')
-                    WHERE address_id = {address_subquery}
-                    {current_flag_where}
+                        ON COALESCE("sub_parcel_type"."sub_parcel_type_code", 'null') = COALESCE(p."sub_parcel_type_code", 'null')
+                    JOIN "core"."address" a
+                        ON p."address_id" = a."address_id"
+                    {parcel_where}
                     ;
                     '''
 
     parcels_fetch = await database.fetch_all(query=query_parcels, values=values)
+    parcel_ids = [parcel['parcel_id'] for parcel in parcels_fetch]
     parcel_ids_and_current_flags = [parcel['parcel_id'] + str(parcel["current_flag"]).lower() for parcel in parcels_fetch]
     parcel_create_dates = [parcel['create_date'].strftime("%Y-%m-%d") for parcel in parcels_fetch]
+
+    if Current:
+        buildings_where = f'WHERE "current_flag" = True AND "parcel_id" = ANY(ARRAY{parcel_ids})'
+        units_where = f'WHERE u."current_flag" = True AND "parcel_id" = ANY(ARRAY{parcel_ids})'
+    else:
+        buildings_where = f'''
+                            WHERE
+                                CONCAT("parcel_id", "current_flag"::text) = ANY(ARRAY{parcel_ids_and_current_flags})
+                            AND CAST("create_date" as VARCHAR) = ANY(ARRAY{parcel_create_dates})
+                          '''             
+        units_where = f'''
+                        WHERE
+                            CONCAT(p."parcel_id", u."current_flag"::text) = ANY(ARRAY{parcel_ids_and_current_flags})
+                        AND CAST(u."create_date" as VARCHAR) = ANY(ARRAY{parcel_create_dates})
+                      '''
 
     query_buildings = f'''
                         SELECT 
@@ -284,9 +297,7 @@ async def Find_Parcels_By_Address(AddressInput: str, Current: bool):
                             , create_date
                             , current_flag
                         FROM "core"."building"
-                        WHERE
-                            CONCAT("parcel_id", "current_flag"::text) = ANY(ARRAY{parcel_ids_and_current_flags})
-                        AND CAST("create_date" as VARCHAR) = ANY(ARRAY{parcel_create_dates})
+                        {buildings_where}
                         ;
                         '''
     
@@ -301,9 +312,7 @@ async def Find_Parcels_By_Address(AddressInput: str, Current: bool):
                     FROM "core"."unit" u
                     JOIN "core"."parcel" p
                         ON SUBSTRING(u."unit_id" FROM 1 FOR 14) = SUBSTRING(p."parcel_id" FROM 1 FOR 14)
-                    WHERE
-                        CONCAT(p."parcel_id", u."current_flag"::text) = ANY(ARRAY{parcel_ids_and_current_flags})
-                    AND CAST(u."create_date" as VARCHAR) = ANY(ARRAY{parcel_create_dates})
+                    {units_where}
                     ;
                     '''
 

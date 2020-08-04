@@ -8,7 +8,7 @@ jobs:
         - name: Publish API to Github Packages
           uses: elgohr/Publish-Docker-Github-Action@master
           with:
-            name: stlrda/redb-api/api
+            name: stlrda/redb-api/redb-api
             username: ${{ github.actor }}
             password: ${{ secrets.TOKEN }}
             registry: docker.pkg.github.com

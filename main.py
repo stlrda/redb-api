@@ -24,7 +24,7 @@ engine = sqlalchemy.create_engine(
 )
 
 # Allow All CORS
-app = FastAPI(title='REDB API', docs_url="/redb/docs", redoc_url="/redb/redoc")
+app = FastAPI(title='REDB API', docs_url="/redb/docs", redoc_url="/redb/redoc", openapi_url="/redb/openapi.json")
 app.add_middleware(CORSMiddleware, allow_origins=['*'])
 
 ## Connect to DB on Startup and disconnect on Shutdown ##

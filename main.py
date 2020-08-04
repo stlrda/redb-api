@@ -45,18 +45,22 @@ async def get_api_docs():
 # Get a ParcelId
 @app.get('/redb/parcel/redb_id', response_model=ParcelInfo)
 async def Find_Parcel_By_REDB_Id(ParcelInput: str, Current: bool):
-
+    
     values = {'ParcelId': ParcelInput}
     if Current == True:
         current_flag_select = ''
         current_flag_where = 'AND current_flag = TRUE'
+        current_flag_parcel_select = ''
+        current_flag_parcel_where = 'AND parcel.current_flag = TRUE'
     else:
         current_flag_select = ', current_flag'
         current_flag_where = ''
+        current_flag_parcel_select = ', parcel.current_flag'
+        current_flag_parcel_where = ''
 
     query_parcels = f'''SELECT parcel_id
-                        , county_id
-                        , address_id
+                        , parcel.county_id
+                        , CONCAT(address.street_address, ' ', address.city, ' ', address.state, ' ', address.country, ' ', address.zip) AS address
                         , city_block_number
                         , parcel_number
                         , owner_id
@@ -76,14 +80,16 @@ async def Find_Parcel_By_REDB_Id(ParcelInput: str, Current: bool):
                         , gis_city_block
                         , gis_parcel
                         , gis_owner_code
-                        {current_flag_select}
-                    FROM "core"."parcel" 
+                        {current_flag_parcel_select}
+                    FROM "core"."parcel"
+                    JOIN "core"."address"
+                    ON "address"."address_id" = "parcel"."address_id"
                     LEFT JOIN "core"."special_parcel_type"
                     ON COALESCE("special_parcel_type"."special_parcel_type_code", 'null') = COALESCE("parcel"."special_parcel_type_code", 'null')
                     LEFT JOIN "core"."sub_parcel_type"
                     ON COALESCE("sub_parcel_type"."sub_parcel_type_code", 'null') = COALESCE("parcel"."sub_parcel_type_code", 'null')
                     WHERE parcel_id = :ParcelId
-                    {current_flag_where}'''
+                    {current_flag_parcel_where}'''
     
     query_buildings = f'''SELECT building_id
                         , owner_id
@@ -119,13 +125,17 @@ async def Find_Parcels_By_Legal_Entity_Id(IdInput: str, Current:bool):
     if Current == True:
         current_flag_select = ''
         current_flag_where = 'AND current_flag = TRUE'
+        current_flag_parcel_select = ''
+        current_flag_parcel_where = 'AND parcel.current_flag = TRUE'
     else:
         current_flag_select = ', current_flag'
         current_flag_where = ''
+        current_flag_parcel_select = ', parcel.current_flag'
+        current_flag_parcel_where = ''
 
     query_parcels = f'''SELECT parcel_id
-                        , county_id
-                        , address_id
+                        , parcel.county_id
+                        , CONCAT(address.street_address, ' ', address.city, ' ', address.state, ' ', address.country, ' ', address.zip) AS address
                         , city_block_number
                         , parcel_number
                         , owner_id
@@ -145,14 +155,16 @@ async def Find_Parcels_By_Legal_Entity_Id(IdInput: str, Current:bool):
                         , gis_city_block
                         , gis_parcel
                         , gis_owner_code
-                        {current_flag_select}
-                    FROM "core"."parcel" 
+                        {current_flag_parcel_select}
+                    FROM "core"."parcel"
+                    JOIN "core"."address"
+                    ON "address"."address_id" = "parcel"."address_id"
                     LEFT JOIN "core"."special_parcel_type"
                     ON COALESCE("special_parcel_type"."special_parcel_type_code", 'null') = COALESCE("parcel"."special_parcel_type_code", 'null')
                     LEFT JOIN "core"."sub_parcel_type"
                     ON COALESCE("sub_parcel_type"."sub_parcel_type_code", 'null') = COALESCE("parcel"."sub_parcel_type_code", 'null')
                     WHERE owner_id = :Legal_Entity_Id
-                    {current_flag_where}'''
+                    {current_flag_parcel_where}'''
     
     query_buildings = f'''SELECT building_id
                         , owner_id
@@ -169,7 +181,7 @@ async def Find_Parcels_By_Legal_Entity_Id(IdInput: str, Current:bool):
                         , owner_id
                         , unit.description
                         , condominium
-                        {current_unit_flag_select}
+                        {current_flag_select}
                         FROM core.unit 
                         WHERE owner_id = :Legal_Entity_Id
                         {current_flag_where}'''
@@ -210,9 +222,9 @@ async def Find_Parcels_By_Address(AddressInput: str, Current: bool):
                             address_id
                         FROM "core"."address"
                         WHERE
-                            SIMILARITY(CONCAT(street_address, ' ', county_id, ' ', city, ' ', address.state, ' ', country, ' ', zip), :address) > 0.4
+                            SIMILARITY(CONCAT(street_address, ' ', city, ' ', address.state, ' ', country, ' ', zip), :address) > 0.4
                         ORDER BY
-                            WORD_SIMILARITY(CONCAT(street_address, ' ', county_id, ' ', city, ' ', address.state, ' ', country, ' ', zip), :address) DESC
+                            WORD_SIMILARITY(CONCAT(street_address, ' ', city, ' ', address.state, ' ', country, ' ', zip), :address) DESC
                         LIMIT 1
                         )
                         '''
@@ -259,6 +271,10 @@ async def Find_Parcels_By_Address(AddressInput: str, Current: bool):
     parcel_ids = [parcel['parcel_id'] for parcel in parcels_fetch]
     parcel_ids_and_current_flags = [parcel['parcel_id'] + str(parcel["current_flag"]).lower() for parcel in parcels_fetch]
     parcel_create_dates = [parcel['create_date'].strftime("%Y-%m-%d") for parcel in parcels_fetch]
+    
+    if len(parcels_fetch) == 0:
+        return {'parcels':[], 'buildings':[], 'units':[]}
+
 
     if Current:
         buildings_where = f'WHERE "current_flag" = True AND "parcel_id" = ANY(ARRAY{parcel_ids})'

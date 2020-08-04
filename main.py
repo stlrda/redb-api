@@ -271,6 +271,10 @@ async def Find_Parcels_By_Address(AddressInput: str, Current: bool):
     parcel_ids = [parcel['parcel_id'] for parcel in parcels_fetch]
     parcel_ids_and_current_flags = [parcel['parcel_id'] + str(parcel["current_flag"]).lower() for parcel in parcels_fetch]
     parcel_create_dates = [parcel['create_date'].strftime("%Y-%m-%d") for parcel in parcels_fetch]
+    
+    if len(parcels_fetch) == 0:
+        return {'parcels':[], 'buildings':[], 'units':[]}
+
 
     if Current:
         buildings_where = f'WHERE "current_flag" = True AND "parcel_id" = ANY(ARRAY{parcel_ids})'

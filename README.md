@@ -178,7 +178,7 @@ The address endpoint requires two inputs for a get request.<br>
 - {Current: bool} - True returns only current data, False returns all data and includes the current_flag field in the output<br>
 
 The address end point uses trigrams and fuzzy matching in order to return all the information related to an address in the database that most closely matches the AddressInput.<br>
-For example: **/redb/parcel/address?AddressInput=210%20N%20TUCKER%20BLVD&Current=True** will would currently return information on 39 different parcels that all use the same address of 210 N TUCKER BLVD  MO USA 63101.0 as well as all the current buildings and units associated with those parcels.  
+For example: **.../redb/parcel/address?AddressInput=210%20N%20TUCKER%20BLVD&Current=True** will would currently return information on 39 different parcels that all use the same address of 210 N TUCKER BLVD  MO USA 63101.0 as well as all the current buildings and units associated with those parcels.  
 
 ## /redb/legal_entity/name
 This endpoint returns a dictionary of lists which contain information about legal entities within the database based on a name.<br><br>
@@ -187,7 +187,7 @@ The name endpoint requires a single input for a get request.<br>
 
 The name endpoint uses trigrams and fuzzy matching in order to return all of the legal entity records whose legal_entity_name field is similar to the NameInput.  The output returned by the end point is ordered such that the closest matches are listed first so being more specific should help you find the desired legal_entity faster.  Legal Names are entered in Lastname, Firstname format.
 
-For example: **/redb/legal_entity/name?nameInput=Doug** would return the following:
+For example: **.../redb/legal_entity/name?nameInput=Doug** would return the following:
 <pre>
 [
   {
@@ -207,13 +207,64 @@ For example: **/redb/legal_entity/name?nameInput=Doug** would return the followi
 ]
 </pre>
 ## /readb/filter/counts
+This endpoint returns a list of dictionaries which contain counts of the commercial use and residential use buildings located on parcels that match the selected criteria.<br><br>
+The counts endpoint requires two inputs for a get request.<br>
+- {FilterTypeInput: str} - The field you would like to filter on<br>
+- {FilterValueInput: str} - The value of the filter field you want to filter on<br>
 
+For example: **.../redb/filter/counts?FilterTypeInput=voting_precinct&FilterValueInput=4** would return the following:
+<pre>
+[
+  {
+    "building_use": "COM",
+    "count": 198
+  },
+  {
+    "building_use": "RES",
+    "count": 1103
+  }
+]</pre>
+
+The acceptable criteria for the FileTypeInput field are as follows:<br>
+[zoning_class, ward, voting_precinct, inspection_area, neighborhood_id, police_district, census_tract]<br>
 
 ## /readb/filter/ids
+This endpoint returns a list of dictionaries which contain the parcel_ids of all the parcels that match the selected criteria.<br><br>
+The ids endpoint requires two inputs for a get request.<br>
+- {FilterTypeInput: str} - The field you would like to filter on<br>
+- {FilterValueInput: str} - The value of the filter field you want to filter on<br>
+
+For example: **.../redb/filter/ids?FilterTypeInput=inspection_area&FilterValueInput=3** would return the following:
+
+<pre>
+[
+  {
+    "parcel_id": "10001.10003754.000.0000"
+  },
+  {
+    "parcel_id": "10001.10000140.000.0000"
+  },
+  {
+    "parcel_id": "10001.10003516.000.0000"
+  },
+  {
+    "parcel_id": "10001.10006542.000.0000"
+  },
+  {
+    "parcel_id": "10001.10000388.000.0000"
+  },
+  {
+    "parcel_id": "etc..."
+  }
+]
+</pre>
+
+The acceptable criteria for the FileTypeInput field are as follows:<br>
+[zoning_class, ward, voting_precinct, inspection_area, neighborhood_id, police_district, census_tract]<br>
 
 ## /redb/latest
 This endpoint returns a dictionary containing the date of the most recent update in redb.<br>
-For example: If the database was most recently updated on 8/4/20 **.../redb/latest** would return
+For example: If the database was most recently updated on 8/4/20 **.../redb/latest** would return the following:
 
 <pre>{
   "update_date": "2020-08-04"

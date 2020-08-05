@@ -172,13 +172,50 @@ For example: **.../redb/parcel/legal_entity_id?IdInput=367&Current=True** would 
 If you don't know the legal_entity_id of a person or business try looking it up by using the **/redb/legal_entity/name** endpoint first. :eyes:
 
 ## /redb/parcel/adddress
-This endpoint returns a dictionary of lists which contain information about the parcel(s), building(s), and unit(s) related to a legal_entity_id.<br><br>
+This endpoint returns a dictionary of lists which contain information about the parcel(s), building(s), and unit(s) related to a street address.<br><br>
 The address endpoint requires two inputs for a get request.<br>
 - {AddressInput: str} - Input the address that you want to search the database for<br>
 - {Current: bool} - True returns only current data, False returns all data and includes the current_flag field in the output<br>
 
 The address end point uses trigrams and fuzzy matching in order to return all the information related to an address in the database that most closely matches the AddressInput.<br>
-For example: **.../redb/parcel/address?AddressInput=210%20N%20TUCKER%20BLVD&Current=True** will would currently return information on 39 different parcels that all use the same address of 210 N TUCKER BLVD  MO USA 63101.0 as well as all the current buildings and units associated with those parcels.  
+For example: **.../redb/parcel/address?AddressInput=10140%20LOOKAWAY%20DR&Current=True** would return the following:
+<pre>
+{
+  "parcels": [
+    {
+      "parcel_id": "10001.10136990.000.0000",
+      "county_id": "10001",
+      "address": "10140 LOOKAWAY DR  MO USA 63137.0",
+      "city_block_number": "9119.0",
+      "parcel_number": "10136990",
+      "owner_id": "10415",
+      "description": "O. L. 119 RIVERVIEW DR. 75FT/79FT 11IN X 365FT/337FT RIVERVIEW ADDN. LOT 5  ",
+      "frontage_to_street": 0,
+      "land_area": 26950,
+      "zoning_class": "A",
+      "ward": "2",
+      "voting_precinct": "3",
+      "inspection_area": "2",
+      "neighborhood_id": "73",
+      "police_district": "6",
+      "census_tract": "1270.0",
+      "asr_neighborhood": "337",
+      "special_parcel_type": null,
+      "sub_parcel_type": null,
+      "gis_city_block": "9119.0",
+      "gis_parcel": "60.0",
+      "gis_owner_code": "0",
+      "create_date": "2020-08-04",
+      "current_flag": true
+    }
+  ],
+  "buildings": [],
+  "units": []
+}
+</pre>
+
+:warning: User beware :warning:<br>
+The information provided by the city is not the most consistant at this time and this is especially true for parcel addresses.  For example were you to search for /redb/parcel/address?AddressInput=10140%20LOOKAWAY%20**DRIVE**&Current=True you would get no results.  It is an address within the database but is is associated with a legal entity rather than a parcel.  To a person it is obvious these should be the same address but to the database they are distinct which makes searching by address less reliable than using legal_id or parcel_id.
 
 ## /redb/legal_entity/name
 This endpoint returns a dictionary of lists which contain information about legal entities within the database based on a name.<br><br>

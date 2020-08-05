@@ -1,7 +1,7 @@
 # Currently Implemented Routes
 
 ## /redb/parcel/redb_id
-This endpoint returns a dictionary of lists which contain information about the parcel(s), building(s), and unit(s) related to a parcel id.<br><br>
+This endpoint returns json of lists which contain information about the parcel(s), building(s), and unit(s) related to a parcel id.<br><br>
 The redb_id endpoint requires two inputs for a get request.<br>
 - {ParcelInput: str} - Input the full redb parcel id that you want to search the database for<br>
 - {Current: bool} - True returns only current data, False returns all data and includes the current_flag field in the output<br>
@@ -64,7 +64,7 @@ For example: **.../redb/parcel/redb_id?ParcelInput=10001.10003220.000.0000&Curre
 
 
 ## /redb/parcel/legal_entity_id
-This endpoint returns a dictionary of lists which contain information about the parcel(s), building(s), and unit(s) related to a legal_entity_id.<br><br>
+This endpoint returns json of lists which contain information about the parcel(s), building(s), and unit(s) related to a legal_entity_id.<br><br>
 The legal_entity_id endpoint requires two inputs for a get request.<br>
 - {IdInput: str} - Input the legal_entity_id that you want to search the database for<br>
 - {Current: bool} - True returns only current data, False returns all data and includes the current_flag field in the output<br>
@@ -172,7 +172,7 @@ For example: **.../redb/parcel/legal_entity_id?IdInput=367&Current=True** would 
 If you don't know the legal_entity_id of a person or business try looking it up by using the **/redb/legal_entity/name** endpoint first. :eyes:
 
 ## /redb/parcel/adddress
-This endpoint returns a dictionary of lists which contain information about the parcel(s), building(s), and unit(s) related to a street address.<br><br>
+This endpoint returns json of lists which contain information about the parcel(s), building(s), and unit(s) related to a street address.<br><br>
 The address endpoint requires two inputs for a get request.<br>
 - {AddressInput: str} - Input the address that you want to search the database for<br>
 - {Current: bool} - True returns only current data, False returns all data and includes the current_flag field in the output<br>
@@ -218,7 +218,7 @@ For example: **.../redb/parcel/address?AddressInput=10140%20LOOKAWAY%20DR&Curren
 The information provided by the city is not the most consistant at this time and this is especially true for parcel addresses.  For example were you to search for /redb/parcel/address?AddressInput=10140%20LOOKAWAY%20**DRIVE**&Current=True you would get no results.  It is an address within the database but is is associated with a legal entity rather than a parcel.  To a person it is obvious these should be the same address but to the database they are distinct which makes searching by address less reliable than using legal_id or parcel_id.
 
 ## /redb/legal_entity/name
-This endpoint returns a dictionary of lists which contain information about legal entities within the database based on a name.<br><br>
+This endpoint returns json of lists which contain information about legal entities within the database based on a name.<br><br>
 The name endpoint requires a single input for a get request.<br>
 - {NameInput: str} - Input the legal_entity_name that you want to search the database for<br>
 
@@ -244,7 +244,7 @@ For example: **.../redb/legal_entity/name?nameInput=Doug** would return the foll
 ]
 </pre>
 ## /readb/filter/counts
-This endpoint returns a list of dictionaries which contain counts of the commercial use and residential use buildings located on parcels that match the selected criteria.<br><br>
+This endpoint returns json which contain counts of the commercial use and residential use buildings located on parcels that match the selected criteria.<br><br>
 The counts endpoint requires two inputs for a get request.<br>
 - {FilterTypeInput: str} - The field you would like to filter on<br>
 - {FilterValueInput: str} - The value of the filter field you want to filter on<br>
@@ -266,7 +266,7 @@ The acceptable criteria for the FileTypeInput field are as follows:<br>
 [zoning_class, ward, voting_precinct, inspection_area, neighborhood_id, police_district, census_tract]<br>
 
 ## /readb/filter/ids
-This endpoint returns a list of dictionaries which contain the parcel_ids of all the parcels that match the selected criteria.<br><br>
+This endpoint returns json which contain the parcel_ids of all the parcels that match the selected criteria.<br><br>
 The ids endpoint requires two inputs for a get request.<br>
 - {FilterTypeInput: str} - The field you would like to filter on<br>
 - {FilterValueInput: str} - The value of the filter field you want to filter on<br>
@@ -300,7 +300,7 @@ The acceptable criteria for the FileTypeInput field are as follows:<br>
 [zoning_class, ward, voting_precinct, inspection_area, neighborhood_id, police_district, census_tract]<br>
 
 ## /redb/latest
-This endpoint returns a dictionary containing the date of the most recent update in redb.<br>
+This endpoint returns json containing the date of the most recent update in redb.<br>
 For example: If the database was most recently updated on 8/4/20 **.../redb/latest** would return the following:
 
 <pre>{

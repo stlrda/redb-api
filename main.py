@@ -366,13 +366,23 @@ async def Building_IDs_By_Filter(FilterTypeInput: str, FilterValueInput: str):
         raise HTTPException(status_code=400, detail='Unsupported filter. Please use one of the following: [zoning_class, ward, voting_precinct, inspection_area, neighborhood_id, police_district, census_tract]')
 
 ## LEGAL_ENTITY ENDPOINTS! ##
-@app.get('/redb/legal_entity/name', response_model=List[LegalEntityName])
-async def Find_Legal_Entity_Id(nameInput: str):
+@app.get('/redb/legal_entity/name', response_model=List[LegalEntity])
+async def Find_Legal_Entity_By_Name(nameInput: str):
     query = f'''SELECT * 
                 FROM "core"."legal_entity"
                 WHERE SIMILARITY(legal_entity_name, :name) > 0.4
                 ORDER BY WORD_SIMILARITY("legal_entity_name", :name) DESC'''
     values = {'name': nameInput}
+    legal_entities = await database.fetch_all(query=query, values=values)
+    return legal_entities
+
+@app.get('/redb/legal_entity/id', response_model=List[LegalEntity])
+async def Find_Legal_Entity_By_Id(IdInput: int):
+    query = f'''SELECT * 
+                FROM "core"."legal_entity"
+                WHERE legal_entity_id = :legal_entity_id
+            '''
+    values = {'legal_entity_id': IdInput}
     legal_entities = await database.fetch_all(query=query, values=values)
     return legal_entities
 

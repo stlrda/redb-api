@@ -427,5 +427,5 @@ def api_docs():
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 
-app.openapi = api_docs()
+app.openapi = api_docs
 

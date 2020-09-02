@@ -408,6 +408,12 @@ async def Find_Latest_Update():
             SELECT MAX("update_date") as "update_date" FROM LATEST_UPDATE'''
     return await database.fetch_one(query=query)
 
+@app.get('/redb/parcel_detail')
+async def parcel_detail(handle: str):
+    query = 'SELECT parcel_data FROM "city_api"."parcel_data" WHERE handle = :handle;'
+    values = {'handle': handle}
+    data = await database.fetch_one(query=query, values=values)
+    return json.loads(dict(data)['parcel_data'])
 
 ## Modify API Docs ##
 # TODO address ERROR: api_docs() missing 1 required positional argument: 'openapi_prefix' when adding "openapi_prefix" param.

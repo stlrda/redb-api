@@ -6,7 +6,7 @@ jobs:
         steps:
         - uses: actions/checkout@master
         - name: Publish API to Github Packages
-          uses: elgohr/Publish-Docker-Github-Action@master
+          uses: elgohr/Publish-Docker-Github-Action@v5
           with:
             name: stlrda/redb-api/redb-api
             username: ${{ github.actor }}
